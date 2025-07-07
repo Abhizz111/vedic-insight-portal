@@ -14,13 +14,146 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      numerology_reports: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          date_of_birth: string
+          destiny_number: number | null
+          email: string
+          full_name: string
+          id: string
+          life_path_number: number | null
+          payment_id: string | null
+          payment_status: string | null
+          personality_number: number | null
+          phone: string
+          report_pdf_url: string | null
+          soul_urge_number: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          date_of_birth: string
+          destiny_number?: number | null
+          email: string
+          full_name: string
+          id?: string
+          life_path_number?: number | null
+          payment_id?: string | null
+          payment_status?: string | null
+          personality_number?: number | null
+          phone: string
+          report_pdf_url?: string | null
+          soul_urge_number?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          date_of_birth?: string
+          destiny_number?: number | null
+          email?: string
+          full_name?: string
+          id?: string
+          life_path_number?: number | null
+          payment_id?: string | null
+          payment_status?: string | null
+          personality_number?: number | null
+          phone?: string
+          report_pdf_url?: string | null
+          soul_urge_number?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payment_history: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string | null
+          gateway_response: Json | null
+          id: string
+          payment_gateway: string | null
+          payment_id: string
+          report_id: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency?: string | null
+          gateway_response?: Json | null
+          id?: string
+          payment_gateway?: string | null
+          payment_id: string
+          report_id?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string | null
+          gateway_response?: Json | null
+          id?: string
+          payment_gateway?: string | null
+          payment_id?: string
+          report_id?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_history_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "numerology_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          full_name: string
+          id?: string
+          phone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_life_path_number: {
+        Args: { birth_date: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

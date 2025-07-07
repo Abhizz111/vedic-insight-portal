@@ -8,24 +8,30 @@ import { Sparkles, Mail, Lock } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { toast } from "sonner";
+import { useAuth } from '@/hooks/useAuth';
 
 const SignIn = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signIn } = useAuth();
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
-      toast.error("Please fill in all fields");
       return;
     }
 
-    // Simulate sign in (this will be connected to Supabase later)
-    toast.success("Sign in successful!");
-    navigate('/dashboard');
+    setLoading(true);
+    const result = await signIn(email, password);
+    
+    if (result.success) {
+      navigate('/dashboard');
+    }
+    
+    setLoading(false);
   };
 
   return (
@@ -57,6 +63,7 @@ const SignIn = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-yellow-400"
+                      required
                     />
                   </div>
                 </div>
@@ -72,15 +79,17 @@ const SignIn = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-yellow-400"
+                      required
                     />
                   </div>
                 </div>
 
                 <Button 
                   type="submit"
+                  disabled={loading}
                   className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white"
                 >
-                  Sign In
+                  {loading ? 'Signing in...' : 'Sign In'}
                 </Button>
               </form>
 

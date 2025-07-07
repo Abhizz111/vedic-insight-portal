@@ -1,46 +1,148 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Download, User, Calendar, Phone, Mail, Star, CreditCard } from "lucide-react";
+import { Download, User, Calendar, Phone, Mail, Star, CreditCard, Sparkles, Moon, Sun, Heart } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+
+interface Profile {
+  full_name: string;
+  phone: string | null;
+}
+
+interface NumerologyReport {
+  id: string;
+  full_name: string;
+  date_of_birth: string;
+  phone: string;
+  email: string;
+  life_path_number: number | null;
+  destiny_number: number | null;
+  soul_urge_number: number | null;
+  personality_number: number | null;
+  report_pdf_url: string | null;
+  payment_status: string | null;
+  created_at: string;
+}
+
+interface PaymentHistory {
+  id: string;
+  amount: number;
+  created_at: string;
+  status: string | null;
+  payment_gateway: string | null;
+}
 
 const Dashboard = () => {
-  const [userDetails] = useState({
-    name: "John Doe",
-    email: "john.doe@example.com",
-    phone: "+1234567890",
-    dateOfBirth: "1990-05-15"
-  });
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [reports, setReports] = useState<NumerologyReport[]>([]);
+  const [payments, setPayments] = useState<PaymentHistory[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  const [reports] = useState([
-    {
-      id: 1,
-      title: "Complete Vedic Numerology Report",
-      date: "2024-01-15",
-      status: "Completed",
-      description: "Comprehensive analysis of your life path, destiny number, and cosmic influences"
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/signin');
+      return;
     }
-  ]);
 
-  const [payments] = useState([
-    {
-      id: 1,
-      amount: "$49.99",
-      date: "2024-01-15",
-      status: "Completed",
-      description: "Vedic Numerology Report"
+    if (user) {
+      fetchUserData();
     }
-  ]);
+  }, [user, loading, navigate]);
 
-  const handleDownloadReport = (reportId: number) => {
+  const fetchUserData = async () => {
+    try {
+      // Fetch profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (profileData) {
+        setProfile(profileData);
+      }
+
+      // Fetch reports
+      const { data: reportsData } = await supabase
+        .from('numerology_reports')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (reportsData) {
+        setReports(reportsData);
+      }
+
+      // Fetch payment history
+      const { data: paymentsData } = await supabase
+        .from('payment_history')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (paymentsData) {
+        setPayments(paymentsData);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const handleDownloadReport = (reportId: string) => {
     toast.success("Downloading your numerology report...");
     // In real implementation, this would download the actual PDF report
   };
+
+  const getNumerologyMeaning = (type: string, number: number | null) => {
+    if (!number) return "Your cosmic number awaits calculation...";
+    
+    const meanings: { [key: string]: { [key: number]: string } } = {
+      life_path: {
+        1: "The Leader - Independent, pioneering, and ambitious",
+        2: "The Peacemaker - Cooperative, diplomatic, and intuitive",
+        3: "The Creative - Artistic, expressive, and optimistic",
+        4: "The Builder - Practical, hardworking, and reliable",
+        5: "The Explorer - Adventurous, versatile, and freedom-loving",
+        6: "The Nurturer - Caring, responsible, and family-oriented",
+        7: "The Seeker - Spiritual, analytical, and introspective",
+        8: "The Achiever - Ambitious, business-minded, and successful",
+        9: "The Humanitarian - Compassionate, generous, and wise"
+      },
+      destiny: {
+        1: "Destined to lead and innovate",
+        2: "Destined to bring harmony and cooperation",
+        3: "Destined to inspire and create",
+        4: "Destined to build lasting foundations",
+        5: "Destined to experience freedom and adventure",
+        6: "Destined to serve and nurture others",
+        7: "Destined to seek truth and wisdom",
+        8: "Destined to achieve material success",
+        9: "Destined to serve humanity"
+      }
+    };
+
+    return meanings[type]?.[number] || "A unique cosmic signature awaits interpretation";
+  };
+
+  if (loading || dataLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading your cosmic dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
@@ -49,9 +151,64 @@ const Dashboard = () => {
       <div className="pt-20 pb-16 px-4">
         <div className="container mx-auto">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-white mb-2">Welcome back, {userDetails.name}!</h1>
-            <p className="text-gray-300">Manage your numerology reports and account details</p>
+            <h1 className="text-4xl font-bold text-white mb-2">
+              Welcome back, {profile?.full_name || user?.email}! ✨
+            </h1>
+            <p className="text-gray-300">Your cosmic journey continues here</p>
           </div>
+
+          {/* Numerology Numbers Display */}
+          {reports.length > 0 && (
+            <div className="grid md:grid-cols-4 gap-6 mb-8">
+              <Card className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 backdrop-blur-lg border-yellow-500/30">
+                <CardContent className="pt-6 text-center">
+                  <Star className="h-8 w-8 text-yellow-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-white mb-2">Life Path</h3>
+                  <div className="text-3xl font-bold text-yellow-400 mb-2">
+                    {reports[0].life_path_number || "—"}
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    {getNumerologyMeaning('life_path', reports[0].life_path_number)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur-lg border-blue-500/30">
+                <CardContent className="pt-6 text-center">
+                  <Moon className="h-8 w-8 text-blue-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-white mb-2">Destiny</h3>
+                  <div className="text-3xl font-bold text-blue-400 mb-2">
+                    {reports[0].destiny_number || "—"}
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    {getNumerologyMeaning('destiny', reports[0].destiny_number)}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-lg border-purple-500/30">
+                <CardContent className="pt-6 text-center">
+                  <Heart className="h-8 w-8 text-purple-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-white mb-2">Soul Urge</h3>
+                  <div className="text-3xl font-bold text-purple-400 mb-2">
+                    {reports[0].soul_urge_number || "—"}
+                  </div>
+                  <p className="text-xs text-gray-300">Your heart's deepest desires</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-500/20 to-teal-500/20 backdrop-blur-lg border-green-500/30">
+                <CardContent className="pt-6 text-center">
+                  <Sun className="h-8 w-8 text-green-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-white mb-2">Personality</h3>
+                  <div className="text-3xl font-bold text-green-400 mb-2">
+                    {reports[0].personality_number || "—"}
+                  </div>
+                  <p className="text-xs text-gray-300">How the world sees you</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <Tabs defaultValue="reports" className="space-y-6">
             <TabsList className="bg-white/10 backdrop-blur-lg border-white/20">
@@ -74,27 +231,35 @@ const Dashboard = () => {
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-white flex items-center gap-2">
-                            <Star className="h-5 w-5 text-yellow-400" />
-                            {report.title}
+                            <Sparkles className="h-5 w-5 text-yellow-400" />
+                            Vedic Numerology Report
                           </CardTitle>
                           <CardDescription className="text-gray-300 mt-2">
-                            {report.description}
+                            Comprehensive analysis for {report.full_name}
                           </CardDescription>
                         </div>
                         <Badge 
                           variant="secondary" 
-                          className="bg-green-500/20 text-green-400 border-green-500/30"
+                          className={`${
+                            report.payment_status === 'completed' 
+                              ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                              : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                          }`}
                         >
-                          {report.status}
+                          {report.payment_status === 'completed' ? 'Completed' : 'Pending'}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="flex justify-between items-center">
-                        <p className="text-gray-300">Generated on: {report.date}</p>
+                        <div>
+                          <p className="text-gray-300">Generated: {new Date(report.created_at).toLocaleDateString()}</p>
+                          <p className="text-gray-300">Birth Date: {report.date_of_birth}</p>
+                        </div>
                         <Button 
                           onClick={() => handleDownloadReport(report.id)}
-                          className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
+                          disabled={report.payment_status !== 'completed'}
+                          className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 disabled:opacity-50"
                         >
                           <Download className="h-4 w-4 mr-2" />
                           Download Report
@@ -107,10 +272,13 @@ const Dashboard = () => {
                 {reports.length === 0 && (
                   <Card className="bg-white/10 backdrop-blur-lg border-white/20">
                     <CardContent className="text-center py-12">
-                      <Star className="h-12 w-12 text-yellow-400 mx-auto mb-4 opacity-50" />
+                      <Sparkles className="h-12 w-12 text-yellow-400 mx-auto mb-4 opacity-50" />
                       <h3 className="text-xl font-semibold text-white mb-2">No Reports Yet</h3>
                       <p className="text-gray-300 mb-4">You haven't generated any numerology reports yet.</p>
-                      <Button className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700">
+                      <Button 
+                        onClick={() => navigate('/')}
+                        className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
+                      >
                         Get Your First Report
                       </Button>
                     </CardContent>
@@ -133,15 +301,7 @@ const Dashboard = () => {
                       <User className="h-5 w-5 text-yellow-400" />
                       <div>
                         <p className="text-sm text-gray-300">Full Name</p>
-                        <p className="text-white font-semibold">{userDetails.name}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      <Calendar className="h-5 w-5 text-yellow-400" />
-                      <div>
-                        <p className="text-sm text-gray-300">Date of Birth</p>
-                        <p className="text-white font-semibold">{userDetails.dateOfBirth}</p>
+                        <p className="text-white font-semibold">{profile?.full_name || 'Not provided'}</p>
                       </div>
                     </div>
                     
@@ -149,7 +309,7 @@ const Dashboard = () => {
                       <Mail className="h-5 w-5 text-yellow-400" />
                       <div>
                         <p className="text-sm text-gray-300">Email</p>
-                        <p className="text-white font-semibold">{userDetails.email}</p>
+                        <p className="text-white font-semibold">{user?.email}</p>
                       </div>
                     </div>
                     
@@ -157,18 +317,19 @@ const Dashboard = () => {
                       <Phone className="h-5 w-5 text-yellow-400" />
                       <div>
                         <p className="text-sm text-gray-300">Phone</p>
-                        <p className="text-white font-semibold">{userDetails.phone}</p>
+                        <p className="text-white font-semibold">{profile?.phone || 'Not provided'}</p>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="pt-4">
-                    <Button 
-                      variant="outline" 
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                    >
-                      Edit Profile
-                    </Button>
+
+                    {reports.length > 0 && (
+                      <div className="flex items-center space-x-3">
+                        <Calendar className="h-5 w-5 text-yellow-400" />
+                        <div>
+                          <p className="text-sm text-gray-300">Date of Birth</p>
+                          <p className="text-white font-semibold">{reports[0].date_of_birth}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -183,17 +344,23 @@ const Dashboard = () => {
                         <div className="flex items-center space-x-3">
                           <CreditCard className="h-5 w-5 text-yellow-400" />
                           <div>
-                            <p className="text-white font-semibold">{payment.description}</p>
-                            <p className="text-gray-300 text-sm">Transaction Date: {payment.date}</p>
+                            <p className="text-white font-semibold">Numerology Report</p>
+                            <p className="text-gray-300 text-sm">
+                              {new Date(payment.created_at).toLocaleDateString()} • {payment.payment_gateway}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-white font-bold text-lg">{payment.amount}</p>
+                          <p className="text-white font-bold text-lg">₹{payment.amount}</p>
                           <Badge 
                             variant="secondary" 
-                            className="bg-green-500/20 text-green-400 border-green-500/30"
+                            className={`${
+                              payment.status === 'completed' 
+                                ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                            }`}
                           >
-                            {payment.status}
+                            {payment.status || 'Pending'}
                           </Badge>
                         </div>
                       </div>

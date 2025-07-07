@@ -8,45 +8,31 @@ import { Sparkles, Mail, Lock, User } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { toast } from "sonner";
+import { useAuth } from '@/hooks/useAuth';
 
 const SignUp = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signUp } = useAuth();
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
-      toast.error("Please fill in all fields");
+    if (!fullName || !email || !password) {
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
+    setLoading(true);
+    const result = await signUp(email, password, fullName);
+    
+    if (result.success) {
+      navigate('/signin');
     }
-
-    if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-
-    // Simulate sign up (this will be connected to Supabase later)
-    toast.success("Account created successfully!");
-    navigate('/dashboard');
-  };
-
-  const updateFormData = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    
+    setLoading(false);
   };
 
   return (
@@ -62,22 +48,23 @@ const SignUp = () => {
               </div>
               <CardTitle className="text-white text-2xl">Create Account</CardTitle>
               <CardDescription className="text-gray-300">
-                Join us to unlock your cosmic blueprint
+                Join thousands discovering their cosmic destiny
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div>
-                  <Label htmlFor="name" className="text-white">Full Name</Label>
+                  <Label htmlFor="fullName" className="text-white">Full Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="name"
+                      id="fullName"
                       type="text"
                       placeholder="Enter your full name"
-                      value={formData.name}
-                      onChange={(e) => updateFormData('name', e.target.value)}
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
                       className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-yellow-400"
+                      required
                     />
                   </div>
                 </div>
@@ -90,9 +77,10 @@ const SignUp = () => {
                       id="email"
                       type="email"
                       placeholder="Enter your email"
-                      value={formData.email}
-                      onChange={(e) => updateFormData('email', e.target.value)}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-yellow-400"
+                      required
                     />
                   </div>
                 </div>
@@ -105,33 +93,21 @@ const SignUp = () => {
                       id="password"
                       type="password"
                       placeholder="Create a password"
-                      value={formData.password}
-                      onChange={(e) => updateFormData('password', e.target.value)}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-yellow-400"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="confirmPassword" className="text-white">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm your password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => updateFormData('confirmPassword', e.target.value)}
-                      className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-yellow-400"
+                      required
+                      minLength={6}
                     />
                   </div>
                 </div>
 
                 <Button 
                   type="submit"
+                  disabled={loading}
                   className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white"
                 >
-                  Create Account
+                  {loading ? 'Creating Account...' : 'Create Account'}
                 </Button>
               </form>
 

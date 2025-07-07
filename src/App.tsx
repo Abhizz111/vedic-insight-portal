@@ -13,6 +13,9 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import AdminSignIn from "./pages/AdminSignIn";
+import AdminDashboard from "./pages/AdminDashboard";
+import ThankYou from "./pages/ThankYou";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +34,12 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/thank-you" element={<ThankYou />} />
+          
+          {/* Admin Routes */}
+          <Route path="/adminlucky856" element={<AdminSignIn />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          
           {/* Privacy and Terms pages can be added later */}
           <Route path="/privacy" element={<Contact />} />
           <Route path="/terms" element={<Contact />} />

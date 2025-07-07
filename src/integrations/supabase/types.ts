@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          password_hash: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          password_hash: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          password_hash?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       numerology_reports: {
         Row: {
           amount: number | null
@@ -153,6 +180,14 @@ export type Database = {
       calculate_life_path_number: {
         Args: { birth_date: string }
         Returns: number
+      }
+      verify_admin_login: {
+        Args: { input_email: string; input_password: string }
+        Returns: {
+          admin_id: string
+          admin_email: string
+          admin_name: string
+        }[]
       }
     }
     Enums: {

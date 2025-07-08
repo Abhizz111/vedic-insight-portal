@@ -78,15 +78,51 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
     return true;
   };
 
-  const handleSubmit = () => {
-    console.log('Form submitted:', formData);
-    toast.success("Details collected! Redirecting to payment...");
-    // Here you would redirect to payment gateway
-    // For now, we'll just show a success message
-    setTimeout(() => {
-      toast.info("Payment integration will be implemented with Stripe/Razorpay");
-    }, 2000);
-  };
+  const handlePayment = async () => {
+  toast.info("Preparing your secure payment...");
+  try {
+    const response = await fetch('http://localhost:5000/api/payment/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: REPORT_PRICE, currency: 'INR' }),
+    });
+
+    if (!response.ok) throw new Error('Failed to create payment order.');
+    const order = await response.json();
+
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Only the public key
+      amount: order.amount,
+      currency: order.currency,
+      name: 'Vedic Numerology',
+      description: 'Personalized Numerology Report',
+      order_id: order.id,
+      handler: function (response: any) {
+        toast.success("Payment Successful!");
+        navigate('/thank-you', {
+          state: {
+            paymentId: response.razorpay_payment_id,
+            amount: order.amount / 100,
+          },
+        });
+      },
+      prefill: {
+        name: formData.fullName,
+        email: formData.email,
+        contact: formData.mobileNumber,
+      },
+      theme: { color: '#FBBF24' },
+    };
+
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
+
+  } catch (error) {
+    console.error('Payment Error:', error);
+    toast.error('Payment failed. Please try again.');
+  }
+};
+
 
   const updateFormData = (field: keyof FormData, value: string) => {
     setFormData(prev => ({

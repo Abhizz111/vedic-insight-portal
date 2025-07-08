@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Download, User, Calendar, Phone, Mail, Star, CreditCard, Sparkles, Moon, Sun, Heart } from "lucide-react";
+import { Download, User, Calendar, Phone, Mail, Star, CreditCard, Sparkles, Moon, Sun, Heart, Edit, Zap, BookOpen, Eye, Compass, Shield } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import EditProfileModal from "@/components/EditProfileModal";
+import NumerologySection from "@/components/NumerologySection";
 import { toast } from "sonner";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,6 +49,7 @@ const Dashboard = () => {
   const [reports, setReports] = useState<NumerologyReport[]>([]);
   const [payments, setPayments] = useState<PaymentHistory[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -154,7 +157,7 @@ const Dashboard = () => {
             <h1 className="text-4xl font-bold text-white mb-2">
               Welcome back, {profile?.full_name || user?.email}! ✨
             </h1>
-            <p className="text-gray-300">Your cosmic journey continues here</p>
+            <p className="text-gray-300">Explore your cosmic journey and numerological insights</p>
           </div>
 
           {/* Numerology Numbers Display */}
@@ -209,6 +212,60 @@ const Dashboard = () => {
               </Card>
             </div>
           )}
+
+          {/* Interactive Numerology Sections */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">Explore Numerology</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <NumerologySection
+                title="Chakra Alignment"
+                description="Discover your energy centers and spiritual balance"
+                icon={<Zap className="h-10 w-10 text-white" />}
+                gradient="bg-gradient-to-br from-red-500/20 to-orange-500/20"
+                comingSoon={true}
+              />
+              
+              <NumerologySection
+                title="Vedic Wisdom"
+                description="Ancient knowledge and cosmic insights"
+                icon={<BookOpen className="h-10 w-10 text-white" />}
+                gradient="bg-gradient-to-br from-purple-500/20 to-indigo-500/20"
+                comingSoon={true}
+              />
+              
+              <NumerologySection
+                title="Aura Reading"
+                description="Understand your spiritual energy field"
+                icon={<Eye className="h-10 w-10 text-white" />}
+                gradient="bg-gradient-to-br from-cyan-500/20 to-blue-500/20"
+                comingSoon={true}
+              />
+              
+              <NumerologySection
+                title="Life Guidance"
+                description="Navigate your path with cosmic wisdom"
+                icon={<Compass className="h-10 w-10 text-white" />}
+                gradient="bg-gradient-to-br from-green-500/20 to-emerald-500/20"
+                comingSoon={true}
+              />
+              
+              <NumerologySection
+                title="Protection Mantras"
+                description="Sacred sounds for spiritual protection"
+                icon={<Shield className="h-10 w-10 text-white" />}
+                gradient="bg-gradient-to-br from-yellow-500/20 to-amber-500/20"
+                comingSoon={true}
+              />
+              
+              <NumerologySection
+                title="Crystal Healing"
+                description="Gemstone recommendations for your numbers"
+                icon={<Sparkles className="h-10 w-10 text-white" />}
+                gradient="bg-gradient-to-br from-pink-500/20 to-rose-500/20"
+                comingSoon={true}
+              />
+            </div>
+          </div>
 
           <Tabs defaultValue="reports" className="space-y-6">
             <TabsList className="bg-white/10 backdrop-blur-lg border-white/20">
@@ -290,10 +347,22 @@ const Dashboard = () => {
             <TabsContent value="profile" className="space-y-6">
               <Card className="bg-white/10 backdrop-blur-lg border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Profile Information</CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Your personal details used for numerological calculations
-                  </CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-white">Profile Information</CardTitle>
+                      <CardDescription className="text-gray-300">
+                        Your personal details used for numerological calculations
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={() => setIsEditModalOpen(true)}
+                      variant="outline"
+                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid md:grid-cols-2 gap-4">
@@ -382,6 +451,13 @@ const Dashboard = () => {
           </Tabs>
         </div>
       </div>
+
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        profile={profile}
+        onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
+      />
 
       <Footer />
     </div>

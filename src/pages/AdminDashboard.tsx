@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Users, CreditCard, FileText, LogOut } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Shield, Users, CreditCard, FileText, LogOut, Search, ShoppingCart } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -33,9 +35,24 @@ interface Report {
   personality_number?: number;
 }
 
+interface Order {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  amount: number;
+  payment_status: string;
+  payment_id?: string;
+  created_at: string;
+}
+
 const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -50,6 +67,20 @@ const AdminDashboard = () => {
 
     fetchData();
   }, [navigate]);
+
+  useEffect(() => {
+    // Filter orders based on search term
+    if (searchTerm.trim() === '') {
+      setFilteredOrders(orders);
+    } else {
+      const filtered = orders.filter(order =>
+        order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.customer_email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredOrders(filtered);
+    }
+  }, [searchTerm, orders]);
 
   const fetchData = async () => {
     try {
@@ -71,6 +102,15 @@ const AdminDashboard = () => {
       if (reportsError) throw reportsError;
       setReports(reportsData || []);
 
+      // Fetch orders
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (ordersError) throw ordersError;
+      setOrders(ordersData || []);
+
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -87,6 +127,7 @@ const AdminDashboard = () => {
 
   const paidReports = reports.filter(report => report.payment_status === 'completed');
   const unpaidReports = reports.filter(report => report.payment_status === 'pending');
+  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.amount), 0);
 
   if (loading) {
     return (
@@ -116,7 +157,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Card className="bg-white/10 backdrop-blur-lg border-white/20">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -145,6 +186,18 @@ const AdminDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
+                  <p className="text-gray-300 text-sm">Total Orders</p>
+                  <p className="text-white text-2xl font-bold">{orders.length}</p>
+                </div>
+                <ShoppingCart className="h-8 w-8 text-purple-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="text-gray-300 text-sm">Paid Reports</p>
                   <p className="text-white text-2xl font-bold">{paidReports.length}</p>
                 </div>
@@ -158,7 +211,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-300 text-sm">Revenue</p>
-                  <p className="text-white text-2xl font-bold">₹{paidReports.length * 199}</p>
+                  <p className="text-white text-2xl font-bold">₹{totalRevenue}</p>
                 </div>
                 <CreditCard className="h-8 w-8 text-green-400" />
               </div>
@@ -167,10 +220,13 @@ const AdminDashboard = () => {
         </div>
 
         {/* Data Tables */}
-        <Tabs defaultValue="users" className="space-y-4">
+        <Tabs defaultValue="orders" className="space-y-4">
           <TabsList className="bg-white/10 border-white/20">
+            <TabsTrigger value="orders" className="text-white data-[state=active]:bg-white/20">
+              Orders
+            </TabsTrigger>
             <TabsTrigger value="users" className="text-white data-[state=active]:bg-white/20">
-              All Users
+              Users
             </TabsTrigger>
             <TabsTrigger value="paid" className="text-white data-[state=active]:bg-white/20">
               Paid Reports
@@ -179,6 +235,64 @@ const AdminDashboard = () => {
               Unpaid Reports
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="orders">
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-white">All Orders</CardTitle>
+                    <CardDescription className="text-gray-300">
+                      Complete order history with search
+                    </CardDescription>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search by order number or customer name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 w-80"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20">
+                      <TableHead className="text-white">Order #</TableHead>
+                      <TableHead className="text-white">Customer</TableHead>
+                      <TableHead className="text-white">Email</TableHead>
+                      <TableHead className="text-white">Phone</TableHead>
+                      <TableHead className="text-white">Amount</TableHead>
+                      <TableHead className="text-white">Status</TableHead>
+                      <TableHead className="text-white">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredOrders.map((order) => (
+                      <TableRow key={order.id} className="border-white/10">
+                        <TableCell className="text-yellow-400 font-mono">{order.order_number}</TableCell>
+                        <TableCell className="text-gray-300">{order.customer_name}</TableCell>
+                        <TableCell className="text-gray-300">{order.customer_email}</TableCell>
+                        <TableCell className="text-gray-300">{order.customer_phone}</TableCell>
+                        <TableCell className="text-gray-300">₹{order.amount}</TableCell>
+                        <TableCell>
+                          <Badge className="bg-green-500/20 text-green-400">
+                            {order.payment_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(order.created_at).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="users">
             <Card className="bg-white/10 backdrop-blur-lg border-white/20">
@@ -189,30 +303,28 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="border-b border-white/20">
-                        <th className="text-white pb-3">Name</th>
-                        <th className="text-white pb-3">Email</th>
-                        <th className="text-white pb-3">Phone</th>
-                        <th className="text-white pb-3">Joined</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((user) => (
-                        <tr key={user.id} className="border-b border-white/10">
-                          <td className="text-gray-300 py-3">{user.full_name}</td>
-                          <td className="text-gray-300 py-3">{user.email}</td>
-                          <td className="text-gray-300 py-3">{user.phone || '-'}</td>
-                          <td className="text-gray-300 py-3">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20">
+                      <TableHead className="text-white">Name</TableHead>
+                      <TableHead className="text-white">Email</TableHead>
+                      <TableHead className="text-white">Phone</TableHead>
+                      <TableHead className="text-white">Joined</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id} className="border-white/10">
+                        <TableCell className="text-gray-300">{user.full_name}</TableCell>
+                        <TableCell className="text-gray-300">{user.email}</TableCell>
+                        <TableCell className="text-gray-300">{user.phone || '-'}</TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
@@ -226,42 +338,40 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="border-b border-white/20">
-                        <th className="text-white pb-3">Name</th>
-                        <th className="text-white pb-3">Email</th>
-                        <th className="text-white pb-3">Phone</th>
-                        <th className="text-white pb-3">DOB</th>
-                        <th className="text-white pb-3">Amount</th>
-                        <th className="text-white pb-3">Status</th>
-                        <th className="text-white pb-3">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paidReports.map((report) => (
-                        <tr key={report.id} className="border-b border-white/10">
-                          <td className="text-gray-300 py-3">{report.full_name}</td>
-                          <td className="text-gray-300 py-3">{report.email}</td>
-                          <td className="text-gray-300 py-3">{report.phone}</td>
-                          <td className="text-gray-300 py-3">
-                            {new Date(report.date_of_birth).toLocaleDateString()}
-                          </td>
-                          <td className="text-gray-300 py-3">₹{report.amount || 199}</td>
-                          <td className="py-3">
-                            <Badge className="bg-green-500/20 text-green-400">
-                              {report.payment_status}
-                            </Badge>
-                          </td>
-                          <td className="text-gray-300 py-3">
-                            {new Date(report.created_at).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20">
+                      <TableHead className="text-white">Name</TableHead>
+                      <TableHead className="text-white">Email</TableHead>
+                      <TableHead className="text-white">Phone</TableHead>
+                      <TableHead className="text-white">DOB</TableHead>
+                      <TableHead className="text-white">Amount</TableHead>
+                      <TableHead className="text-white">Status</TableHead>
+                      <TableHead className="text-white">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paidReports.map((report) => (
+                      <TableRow key={report.id} className="border-white/10">
+                        <TableCell className="text-gray-300">{report.full_name}</TableCell>
+                        <TableCell className="text-gray-300">{report.email}</TableCell>
+                        <TableCell className="text-gray-300">{report.phone}</TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(report.date_of_birth).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-gray-300">₹{report.amount || 199}</TableCell>
+                        <TableCell>
+                          <Badge className="bg-green-500/20 text-green-400">
+                            {report.payment_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(report.created_at).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
@@ -275,40 +385,38 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="border-b border-white/20">
-                        <th className="text-white pb-3">Name</th>
-                        <th className="text-white pb-3">Email</th>
-                        <th className="text-white pb-3">Phone</th>
-                        <th className="text-white pb-3">DOB</th>
-                        <th className="text-white pb-3">Status</th>
-                        <th className="text-white pb-3">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {unpaidReports.map((report) => (
-                        <tr key={report.id} className="border-b border-white/10">
-                          <td className="text-gray-300 py-3">{report.full_name}</td>
-                          <td className="text-gray-300 py-3">{report.email}</td>
-                          <td className="text-gray-300 py-3">{report.phone}</td>
-                          <td className="text-gray-300 py-3">
-                            {new Date(report.date_of_birth).toLocaleDateString()}
-                          </td>
-                          <td className="py-3">
-                            <Badge className="bg-orange-500/20 text-orange-400">
-                              {report.payment_status}
-                            </Badge>
-                          </td>
-                          <td className="text-gray-300 py-3">
-                            {new Date(report.created_at).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20">
+                      <TableHead className="text-white">Name</TableHead>
+                      <TableHead className="text-white">Email</TableHead>
+                      <TableHead className="text-white">Phone</TableHead>
+                      <TableHead className="text-white">DOB</TableHead>
+                      <TableHead className="text-white">Status</TableHead>
+                      <TableHead className="text-white">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {unpaidReports.map((report) => (
+                      <TableRow key={report.id} className="border-white/10">
+                        <TableCell className="text-gray-300">{report.full_name}</TableCell>
+                        <TableCell className="text-gray-300">{report.email}</TableCell>
+                        <TableCell className="text-gray-300">{report.phone}</TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(report.date_of_birth).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-orange-500/20 text-orange-400">
+                            {report.payment_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(report.created_at).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>

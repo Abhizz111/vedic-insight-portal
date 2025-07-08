@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight, Calendar, Mail, Phone, User } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface FormData {
   fullName: string;
@@ -18,8 +21,7 @@ interface FormFlowProps {
   onBack: () => void;
 }
 
-// Set a price for the report. This could also be passed in as a prop.
-const REPORT_PRICE = 1; // Example price in INR
+const REPORT_PRICE = 199; // Price in INR
 
 const FormFlow = ({ onBack }: FormFlowProps) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -29,6 +31,8 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
     mobileNumber: '',
     email: ''
   });
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const totalSteps = 4;
 
@@ -81,51 +85,128 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
     return true;
   };
 
-  const handlePayment = async () => {
-  toast.info("Preparing your secure payment...");
-  try {
-    const response = await fetch('http://localhost:5000/api/payment/create-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: REPORT_PRICE, currency: 'INR' }),
-    });
+  const handleSubmit = async () => {
+    if (!user) {
+      toast.error('Please sign in to continue');
+      navigate('/signin');
+      return;
+    }
 
-    if (!response.ok) throw new Error('Failed to create payment order.');
-    const order = await response.json();
+    try {
+      // First create the numerology report
+      const { data: reportData, error: reportError } = await supabase
+        .from('numerology_reports')
+        .insert({
+          user_id: user.id,
+          full_name: formData.fullName,
+          email: formData.email,
+          phone: formData.mobileNumber,
+          date_of_birth: formData.dateOfBirth,
+          payment_status: 'pending',
+          amount: REPORT_PRICE
+        })
+        .select()
+        .single();
 
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Only the public key
-      amount: order.amount,
-      currency: order.currency,
-      name: 'Vedic Numerology',
-      description: 'Personalized Numerology Report',
-      order_id: order.id,
-      handler: function (response: any) {
-        toast.success("Payment Successful!");
-        navigate('/thank-you', {
-          state: {
-            paymentId: response.razorpay_payment_id,
-            amount: order.amount / 100,
+      if (reportError) throw reportError;
+
+      // Then proceed with payment
+      handlePayment(reportData.id);
+    } catch (error: any) {
+      console.error('Error creating report:', error);
+      toast.error('Failed to create report. Please try again.');
+    }
+  };
+
+  const handlePayment = async (reportId: string) => {
+    toast.info("Preparing your secure payment...");
+    
+    try {
+      // Load Razorpay script
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      document.body.appendChild(script);
+
+      script.onload = () => {
+        const options = {
+          key: 'rzp_test_vTAk9LCrgGgzjp', // Test key
+          amount: REPORT_PRICE * 100, // Convert to paise
+          currency: 'INR',
+          name: 'VedicNumbers',
+          description: 'Complete Numerology Report',
+          handler: async function (response: any) {
+            try {
+              // Update report with payment info
+              await supabase
+                .from('numerology_reports')
+                .update({
+                  payment_status: 'completed',
+                  payment_id: response.razorpay_payment_id
+                })
+                .eq('id', reportId);
+
+              // Create order record
+              await supabase
+                .from('orders')
+                .insert({
+                  user_id: user?.id,
+                  report_id: reportId,
+                  customer_name: formData.fullName,
+                  customer_email: formData.email,
+                  customer_phone: formData.mobileNumber,
+                  amount: REPORT_PRICE,
+                  payment_id: response.razorpay_payment_id,
+                  payment_status: 'completed'
+                });
+
+              // Create payment history record
+              await supabase
+                .from('payment_history')
+                .insert({
+                  user_id: user?.id,
+                  report_id: reportId,
+                  payment_id: response.razorpay_payment_id,
+                  amount: REPORT_PRICE,
+                  currency: 'INR',
+                  status: 'completed',
+                  payment_gateway: 'razorpay'
+                });
+
+              toast.success("Payment Successful!");
+              setTimeout(() => {
+                navigate('/thank-you', {
+                  state: {
+                    paymentId: response.razorpay_payment_id,
+                    amount: REPORT_PRICE,
+                  },
+                });
+              }, 1000);
+            } catch (error) {
+              console.error('Error updating payment status:', error);
+              toast.error('Payment successful but failed to update records');
+            }
           },
-        });
-      },
-      prefill: {
-        name: formData.fullName,
-        email: formData.email,
-        contact: formData.mobileNumber,
-      },
-      theme: { color: '#FBBF24' },
-    };
+          prefill: {
+            name: formData.fullName,
+            email: formData.email,
+            contact: formData.mobileNumber,
+          },
+          theme: { color: '#FBBF24' },
+        };
 
-    const rzp = new (window as any).Razorpay(options);
-    rzp.open();
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      };
 
-  } catch (error) {
-    console.error('Payment Error:', error);
-    toast.error('Payment failed. Please try again.');
-  }
-};
-
+      script.onerror = () => {
+        toast.error('Failed to load payment gateway');
+      };
+    } catch (error) {
+      console.error('Payment Error:', error);
+      toast.error('Payment failed. Please try again.');
+    }
+  };
 
   const updateFormData = (field: keyof FormData, value: string) => {
     setFormData(prev => ({

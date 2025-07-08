@@ -20,24 +20,24 @@ const NumerologySection = ({ title, description, icon, gradient, comingSoon = fa
   };
 
   return (
-    <Card className={`${gradient} backdrop-blur-lg border-white/20 hover:scale-105 transition-transform duration-300 cursor-pointer`} onClick={handleClick}>
+    <Card className={`${gradient} backdrop-blur-sm border-white/30 hover:scale-105 transition-transform duration-300 cursor-pointer shadow-lg hover:shadow-xl`} onClick={handleClick}>
       <CardHeader className="text-center pb-4">
         <div className="flex justify-center mb-3">
           {icon}
         </div>
-        <CardTitle className="text-white text-xl">{title}</CardTitle>
-        <CardDescription className="text-gray-200 text-sm">
+        <CardTitle className="text-white text-xl font-bold">{title}</CardTitle>
+        <CardDescription className="text-gray-100 text-sm font-medium">
           {description}
         </CardDescription>
       </CardHeader>
       <CardContent className="text-center">
         {comingSoon ? (
           <div className="space-y-2">
-            <p className="text-gray-200 text-sm">Click to explore</p>
-            <ExternalLink className="h-4 w-4 text-white/70 mx-auto" />
+            <p className="text-gray-100 text-sm font-medium">Click to explore</p>
+            <ExternalLink className="h-4 w-4 text-white/90 mx-auto" />
           </div>
         ) : (
-          <Button variant="secondary" size="sm" className="bg-white/20 text-white hover:bg-white/30">
+          <Button variant="secondary" size="sm" className="bg-white/30 text-white hover:bg-white/40 font-semibold">
             Explore Now
           </Button>
         )}

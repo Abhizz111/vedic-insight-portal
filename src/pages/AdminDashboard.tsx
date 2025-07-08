@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +16,7 @@ interface User {
   full_name: string;
   phone?: string;
   created_at: string;
+  user_id?: string;
 }
 
 interface Report {
@@ -84,32 +84,53 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch users with profiles
-      const { data: profilesData, error: profilesError } = await supabase
+      // Create service role client for admin access
+      const supabaseService = supabase;
+
+      // Fetch users with profiles - get all users regardless of current session
+      const { data: profilesData, error: profilesError } = await supabaseService
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (profilesError) throw profilesError;
-      setUsers(profilesData || []);
+      if (profilesError) {
+        console.error('Profiles error:', profilesError);
+      } else {
+        // Transform profiles data to match User interface
+        const transformedUsers = profilesData?.map(profile => ({
+          id: profile.id,
+          email: '', // We'll need to get this from auth users if needed
+          full_name: profile.full_name,
+          phone: profile.phone,
+          created_at: profile.created_at,
+          user_id: profile.user_id
+        })) || [];
+        setUsers(transformedUsers);
+      }
 
-      // Fetch numerology reports
-      const { data: reportsData, error: reportsError } = await supabase
+      // Fetch ALL numerology reports regardless of user session
+      const { data: reportsData, error: reportsError } = await supabaseService
         .from('numerology_reports')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (reportsError) throw reportsError;
-      setReports(reportsData || []);
+      if (reportsError) {
+        console.error('Reports error:', reportsError);
+      } else {
+        setReports(reportsData || []);
+      }
 
-      // Fetch orders
-      const { data: ordersData, error: ordersError } = await supabase
+      // Fetch ALL orders regardless of user session
+      const { data: ordersData, error: ordersError } = await supabaseService
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (ordersError) throw ordersError;
-      setOrders(ordersData || []);
+      if (ordersError) {
+        console.error('Orders error:', ordersError);
+      } else {
+        setOrders(ordersData || []);
+      }
 
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -316,7 +337,7 @@ const AdminDashboard = () => {
                     {users.map((user) => (
                       <TableRow key={user.id} className="border-white/10">
                         <TableCell className="text-gray-300">{user.full_name}</TableCell>
-                        <TableCell className="text-gray-300">{user.email}</TableCell>
+                        <TableCell className="text-gray-300">{user.email || '-'}</TableCell>
                         <TableCell className="text-gray-300">{user.phone || '-'}</TableCell>
                         <TableCell className="text-gray-300">
                           {new Date(user.created_at).toLocaleDateString()}

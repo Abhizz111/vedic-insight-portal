@@ -1,9 +1,11 @@
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ArrowRight, Calendar, Mail, Phone, User } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, ArrowRight, Calendar, Mail, Phone, User, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 interface FormData {
   fullName: string;
   dateOfBirth: string;
+  gender: string;
   mobileNumber: string;
   email: string;
 }
@@ -27,13 +30,14 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     dateOfBirth: '',
+    gender: '',
     mobileNumber: '',
     email: ''
   });
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   const handleNext = () => {
     const currentStepValid = validateCurrentStep();
@@ -69,12 +73,18 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
         }
         break;
       case 3:
+        if (!formData.gender) {
+          toast.error("Please select your gender");
+          return false;
+        }
+        break;
+      case 4:
         if (!formData.mobileNumber.trim() || formData.mobileNumber.length < 10) {
           toast.error("Please enter a valid mobile number");
           return false;
         }
         break;
-      case 4:
+      case 5:
         if (!formData.email.trim() || !formData.email.includes('@')) {
           toast.error("Please enter a valid email address");
           return false;
@@ -91,15 +101,11 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
       // If user is signed in, use their ID, otherwise proceed as guest
       if (user) {
         reportUserId = user.id;
-      } else {
-        // For guest users, we'll create a temporary user ID or handle differently
-        // We'll proceed without user_id for guest checkout
-        console.log('Processing as guest user');
       }
 
-      // Create the numerology report
+      // Create the numerology report - for guest users, we'll bypass RLS by using service role
       const reportData = {
-        user_id: reportUserId, // Will be null for guests
+        user_id: reportUserId,
         full_name: formData.fullName,
         email: formData.email,
         phone: formData.mobileNumber,
@@ -108,19 +114,27 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
         amount: REPORT_PRICE
       };
 
-      const { data: report, error: reportError } = await supabase
-        .from('numerology_reports')
-        .insert(reportData)
-        .select()
-        .single();
+      console.log('Creating report with data:', reportData);
+
+      // Use the RPC function to create report which will handle RLS properly
+      const { data: report, error: reportError } = await supabase.rpc('create_guest_report', {
+        p_user_id: reportUserId,
+        p_full_name: formData.fullName,
+        p_email: formData.email,
+        p_phone: formData.mobileNumber,
+        p_date_of_birth: formData.dateOfBirth,
+        p_amount: REPORT_PRICE
+      });
 
       if (reportError) {
         console.error('Report creation error:', reportError);
         throw reportError;
       }
 
+      console.log('Report created successfully:', report);
+
       // Proceed with payment
-      handlePayment(report.id, reportUserId);
+      handlePayment(report, reportUserId);
     } catch (error: any) {
       console.error('Error creating report:', error);
       toast.error('Failed to create report. Please try again.');
@@ -146,6 +160,8 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
           description: 'Complete Numerology Report',
           handler: async function (response: any) {
             try {
+              console.log('Payment successful, updating records...');
+
               // Update report with payment info
               await supabase
                 .from('numerology_reports')
@@ -155,29 +171,22 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
                 })
                 .eq('id', reportId);
 
-              // Create order record - use service role to bypass RLS for guest users
-              const orderData = {
-                user_id: userId,
-                report_id: reportId,
-                customer_name: formData.fullName,
-                customer_email: formData.email,
-                customer_phone: formData.mobileNumber,
-                amount: REPORT_PRICE,
-                payment_id: response.razorpay_payment_id,
-                payment_status: 'completed'
-              };
-
-              // For guest users, we need to use service role or modify RLS policies
-              const { error: orderError } = await supabase
-                .from('orders')
-                .insert(orderData);
+              // Create order record using RPC function
+              const { error: orderError } = await supabase.rpc('create_guest_order', {
+                p_user_id: userId,
+                p_report_id: reportId,
+                p_customer_name: formData.fullName,
+                p_customer_email: formData.email,
+                p_customer_phone: formData.mobileNumber,
+                p_amount: REPORT_PRICE,
+                p_payment_id: response.razorpay_payment_id
+              });
 
               if (orderError) {
                 console.error('Order creation error:', orderError);
-                // Continue anyway as payment was successful
               }
 
-              // Create payment history record
+              // Create payment history record if user is logged in
               if (userId) {
                 await supabase
                   .from('payment_history')
@@ -285,6 +294,31 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">
+              <Users className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-white mb-2">What's your gender?</h3>
+              <p className="text-gray-300">Gender helps in providing more personalized numerological insights</p>
+            </div>
+            <div>
+              <Label htmlFor="gender" className="text-white">Gender</Label>
+              <Select value={formData.gender} onValueChange={(value) => updateFormData('gender', value)}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white focus:border-yellow-400">
+                  <SelectValue placeholder="Select your gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-4">
+            <div className="text-center mb-6">
               <Phone className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-white mb-2">What's your mobile number?</h3>
               <p className="text-gray-300">We'll use this to send you updates about your report</p>
@@ -304,7 +338,7 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">

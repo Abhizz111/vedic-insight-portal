@@ -27,15 +27,24 @@ interface UserReport {
   created_at: string;
 }
 
+interface UserProfile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  phone: string | null;
+}
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [reports, setReports] = useState<UserReport[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchUserReports();
+      fetchUserProfile();
     }
   }, [user]);
 
@@ -57,8 +66,27 @@ const Dashboard = () => {
     }
   };
 
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      setProfile(data);
+    } catch (error: any) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
   const handleDownloadReport = () => {
     toast.info('Report download feature coming soon!');
+  };
+
+  const handleProfileUpdate = (updatedProfile: UserProfile) => {
+    setProfile(updatedProfile);
   };
 
   const paidReports = reports.filter(report => report.payment_status === 'completed');
@@ -92,7 +120,7 @@ const Dashboard = () => {
 
           {/* Quick Stats */}
           <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <Card className="bg-gradient-to-br from-emerald-400 to-teal-600 backdrop-blur-sm border-white/30 shadow-lg">
+            <Card className="bg-gradient-to-br from-emerald-500 to-teal-700 backdrop-blur-sm border-white/30 shadow-lg">
               <CardContent className="p-6 text-center">
                 <Star className="h-12 w-12 text-white mx-auto mb-4" />
                 <h3 className="text-white text-xl font-bold mb-2">Total Reports</h3>
@@ -100,7 +128,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-blue-400 to-indigo-600 backdrop-blur-sm border-white/30 shadow-lg">
+            <Card className="bg-gradient-to-br from-blue-500 to-indigo-700 backdrop-blur-sm border-white/30 shadow-lg">
               <CardContent className="p-6 text-center">
                 <Heart className="h-12 w-12 text-white mx-auto mb-4" />
                 <h3 className="text-white text-xl font-bold mb-2">Completed</h3>
@@ -108,7 +136,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-orange-400 to-red-600 backdrop-blur-sm border-white/30 shadow-lg">
+            <Card className="bg-gradient-to-br from-orange-500 to-red-700 backdrop-blur-sm border-white/30 shadow-lg">
               <CardContent className="p-6 text-center">
                 <Sparkles className="h-12 w-12 text-white mx-auto mb-4" />
                 <h3 className="text-white text-xl font-bold mb-2">Pending</h3>
@@ -123,27 +151,31 @@ const Dashboard = () => {
               Explore Your Numerological Journey
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
-              <NumerologySection
-                title="Profile Settings"
-                description="Edit your personal information and preferences"
-                icon={<User className="h-16 w-16 text-white" />}
-                gradient="bg-gradient-to-br from-purple-500 to-pink-600"
-                comingSoon={false}
-              />
+              <div onClick={() => setShowEditProfile(true)}>
+                <NumerologySection
+                  title="Profile Settings"
+                  description="Edit your personal information and preferences"
+                  icon={<User className="h-16 w-16 text-white" />}
+                  gradient="bg-gradient-to-br from-purple-600 to-pink-700"
+                  comingSoon={false}
+                />
+              </div>
               
-              <NumerologySection
-                title="Download Report"
-                description="Get your complete numerology analysis"
-                icon={<Download className="h-16 w-16 text-white" />}
-                gradient="bg-gradient-to-br from-green-500 to-emerald-600"
-                comingSoon={false}
-              />
+              <div onClick={handleDownloadReport}>
+                <NumerologySection
+                  title="Download Report"
+                  description="Get your complete numerology analysis"
+                  icon={<Download className="h-16 w-16 text-white" />}
+                  gradient="bg-gradient-to-br from-green-600 to-emerald-700"
+                  comingSoon={false}
+                />
+              </div>
 
               <NumerologySection
                 title="Life Path Analysis"
                 description="Discover your core life purpose and direction"
                 icon={<Compass className="h-16 w-16 text-white" />}
-                gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
+                gradient="bg-gradient-to-br from-blue-600 to-cyan-700"
                 comingSoon={true}
               />
 
@@ -151,7 +183,7 @@ const Dashboard = () => {
                 title="Destiny Number"
                 description="Uncover what you're meant to achieve in this lifetime"
                 icon={<Star className="h-16 w-16 text-white" />}
-                gradient="bg-gradient-to-br from-yellow-500 to-orange-600"
+                gradient="bg-gradient-to-br from-yellow-600 to-orange-700"
                 comingSoon={true}
               />
 
@@ -159,7 +191,7 @@ const Dashboard = () => {
                 title="Soul Urge Insights"
                 description="Understand your deepest desires and motivations"
                 icon={<Heart className="h-16 w-16 text-white" />}
-                gradient="bg-gradient-to-br from-rose-500 to-red-600"
+                gradient="bg-gradient-to-br from-rose-600 to-red-700"
                 comingSoon={true}
               />
 
@@ -167,7 +199,7 @@ const Dashboard = () => {
                 title="Personality Decode"
                 description="Learn how others perceive your outer personality"
                 icon={<Brain className="h-16 w-16 text-white" />}
-                gradient="bg-gradient-to-br from-indigo-500 to-purple-600"
+                gradient="bg-gradient-to-br from-indigo-600 to-purple-700"
                 comingSoon={true}
               />
             </div>
@@ -270,6 +302,8 @@ const Dashboard = () => {
       <EditProfileModal 
         isOpen={showEditProfile}
         onClose={() => setShowEditProfile(false)}
+        profile={profile}
+        onProfileUpdate={handleProfileUpdate}
       />
     </div>
   );

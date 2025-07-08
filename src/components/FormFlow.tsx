@@ -18,6 +18,9 @@ interface FormFlowProps {
   onBack: () => void;
 }
 
+// Set a price for the report. This could also be passed in as a prop.
+const REPORT_PRICE = 1; // Example price in INR
+
 const FormFlow = ({ onBack }: FormFlowProps) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({

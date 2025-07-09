@@ -103,21 +103,17 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
         reportUserId = user.id;
       }
 
-      // Create the numerology report - for guest users, we'll bypass RLS by using service role
-      const reportData = {
-        user_id: reportUserId,
-        full_name: formData.fullName,
-        email: formData.email,
-        phone: formData.mobileNumber,
-        date_of_birth: formData.dateOfBirth,
-        payment_status: 'pending',
-        amount: REPORT_PRICE
-      };
+      console.log('Creating report with data:', {
+        p_user_id: reportUserId,
+        p_full_name: formData.fullName,
+        p_email: formData.email,
+        p_phone: formData.mobileNumber,
+        p_date_of_birth: formData.dateOfBirth,
+        p_amount: REPORT_PRICE
+      });
 
-      console.log('Creating report with data:', reportData);
-
-      // Use the RPC function to create report which will handle RLS properly
-      const { data: report, error: reportError } = await supabase.rpc('create_guest_report', {
+      // Use the RPC function to create report which will handle RLS properly for guest users
+      const { data: reportId, error: reportError } = await supabase.rpc('create_guest_report', {
         p_user_id: reportUserId,
         p_full_name: formData.fullName,
         p_email: formData.email,
@@ -131,10 +127,27 @@ const FormFlow = ({ onBack }: FormFlowProps) => {
         throw reportError;
       }
 
-      console.log('Report created successfully:', report);
+      if (!reportId) {
+        throw new Error('Failed to create report - no ID returned');
+      }
+
+      console.log('Report created successfully with ID:', reportId);
+
+      // Update the report with gender using a separate call since the RPC doesn't include gender
+      if (formData.gender) {
+        const { error: updateError } = await supabase
+          .from('numerology_reports')
+          .update({ gender: formData.gender })
+          .eq('id', reportId);
+
+        if (updateError) {
+          console.error('Error updating gender:', updateError);
+          // Don't fail the whole process for this
+        }
+      }
 
       // Proceed with payment
-      handlePayment(report, reportUserId);
+      handlePayment(reportId, reportUserId);
     } catch (error: any) {
       console.error('Error creating report:', error);
       toast.error('Failed to create report. Please try again.');
